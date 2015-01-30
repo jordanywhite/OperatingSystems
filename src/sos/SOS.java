@@ -137,7 +137,6 @@ public class SOS
         
         // Define the top of stack as the first entry after the program
         m_CPU.setSP(split_mem[1][0]);
-        m_CPU.setBottomOfStack(m_CPU.getSP());
         
         // Point the program counter to the first instruction
         m_CPU.setPC(split_mem[0][0]);

@@ -200,16 +200,6 @@ public class CPU
     {
         m_registers[LIM] = v;
     }
-    
-    /**
-     * setBottomOfStack
-     *
-     * @param v the memory address where the stack begins
-     */
-    public void setBottomOfStack(int v)
-    {
-        bottomOfStack = v;
-    }
 
     /**
      * regDump
@@ -389,7 +379,7 @@ public class CPU
         
         // Prevent stack pointer from falling into instruction memory
         if(getSP() + 1 > getLIM()) {
-            errorMessage("Popping off of empty stack");
+            errorMessage("Seg fault: Popping off of empty stack");
             System.exit(1);
         }
         
