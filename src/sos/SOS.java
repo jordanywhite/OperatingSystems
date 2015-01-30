@@ -107,8 +107,8 @@ public class SOS
     /**
      * createProcess starts a process
      * 
-     * @param prog
-     * @param allocSize
+     * @param prog program to be run
+     * @param allocSize ammount of memory given to the program
      */
     public void createProcess(Program prog, int allocSize)
     {

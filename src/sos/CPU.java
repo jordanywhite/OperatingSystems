@@ -75,11 +75,6 @@ public class CPU
      * @see RAM
      **/
     private RAM m_RAM = null;
-    
-    /**
-     * Indicates the memory location where the stack begins
-     */
-    private int bottomOfStack = -1;
 
     //======================================================================
     //Methods
@@ -139,16 +134,6 @@ public class CPU
     public int getLIM()
     {
         return m_registers[LIM];
-    }
-    
-    /**
-     * getBottomOfStack
-     *
-     * @return the address of the first valid stack memory location
-     */
-    public int getBottomOfStack()
-    {
-        return bottomOfStack;
     }
 
     /**
@@ -292,6 +277,12 @@ public class CPU
     	while (true){
     		//retrieve current instruction
     		int [] instruction = m_RAM.fetch(getPC());
+
+            int opcode = instruction[0];
+            int instr1 = instruction[1];
+            int instr2 = instruction[2];
+            int instr3 = instruction[3];
+
     		//if verbose is true print extras
     		if (m_verbose) {
     			regDump();
@@ -299,45 +290,45 @@ public class CPU
     		}
     		
     		//takes opcode and performs instruction
-    		switch (instruction[0]) {
+    		switch (opcode) {
     			case CPU.SET:	
-    				m_registers[instruction[1]] = instruction[2];
+    				m_registers[instr1] =instr2;
     				break;
     			case CPU.ADD:
-    				m_registers[instruction[1]] = m_registers[instruction[2]] + m_registers[instruction[3]];
+    				m_registers[instr1] = m_registers[instr2] + m_registers[instr3];
     				break;
     			case CPU.SUB:
-    				m_registers[instruction[1]] = m_registers[instruction[2]] - m_registers[instruction[3]];
+    				m_registers[instr1] = m_registers[instr2] - m_registers[instr3];
     				break;
     			case CPU.MUL:
-    				m_registers[instruction[1]] = m_registers[instruction[2]] * m_registers[instruction[3]];
+    				m_registers[instr1] = m_registers[instr2] * m_registers[instr3];
     				break;
     			case CPU.DIV:
-    				m_registers[instruction[1]] = m_registers[instruction[2]] / m_registers[instruction[3]];
+    				m_registers[instr1] = m_registers[instr2] / m_registers[instr3];
     				break;
     			case CPU.COPY:
-    				m_registers[instruction[1]] = m_registers[instruction[2]];
+    				m_registers[instr1] = m_registers[instr2];
     				break;
     			case CPU.BRANCH:
-    				setPC(instruction[1]);
+    				setPC(instr1);
     				break;
     			case CPU.BNE:
-    				if (m_registers[instruction[1]] != m_registers[instruction[2]]) setPC(instruction[3]);
+    				if (m_registers[instr1] != m_registers[instr2]) setPC(instr3);
     				break;
     			case CPU.BLT:
-    				if (m_registers[instruction[1]] < m_registers[instruction[2]]) setPC(instruction[3]);
+    				if (m_registers[instr1] < m_registers[instr2]) setPC(instr3);
     				break;
     			case CPU.POP:
-    				m_registers[instruction[1]] = pop();
+    				m_registers[instr1] = pop();
     				break;
     			case CPU.PUSH:
-    				push(m_registers[instruction[1]]);
+    				push(m_registers[instr1]);
     				break;
     			case CPU.LOAD:
     				
     			    // Attempts to load the value in the memory location given by 
     			    // the second register into the first register
-    				if (load(instruction[1], instruction[2])) break;
+    				if (load(instr1, instruction[2])) break;
     				
     				// Escape the loop if the load fails
     				else return;
@@ -346,7 +337,7 @@ public class CPU
     			    
     			    // Attempts to save the value in the first register to the memory
                     // location given by the second register
-    				if (save(instruction[1], instruction[2])) break;
+    				if (save(instr1, instr2)) break;
     				
     				// Escape the loop if the save fails
     				else return;
