@@ -30,7 +30,7 @@ public class SOS implements CPU.TrapHandler {
      * This flag causes the SOS to print lots of potentially helpful status
      * messages
      **/
-    public static final boolean m_verbose = true;
+    public static final boolean m_verbose = false;
 
     /**
      * The ProcessControlBlock of the current process
@@ -73,16 +73,19 @@ public class SOS implements CPU.TrapHandler {
      * The RAM attached to the CPU.
      **/
     private RAM m_RAM = null;
+    
+    /**
+     * Starve counters for statistical analysis
+     */
+    private double totalAvgStarveTime = 0;
+    private double maxStarvTime = 0;
 
     /**
      * Priority queues for every process, low medium or high
      */
-    private Vector<ProcessControlBlock> highPrio =
-            new Vector<ProcessControlBlock>();
-    private Vector<ProcessControlBlock> normPrio =
-            new Vector<ProcessControlBlock>();
-    private Vector<ProcessControlBlock> lowPrio =
-            new Vector<ProcessControlBlock>();
+    private Vector<ProcessControlBlock> highPrio;
+    private Vector<ProcessControlBlock> normPrio;
+    private Vector<ProcessControlBlock> lowPrio;
 
     // ======================================================================
     // Constants
@@ -142,13 +145,26 @@ public class SOS implements CPU.TrapHandler {
     public SOS(CPU c, RAM r) {
         // Init member list
         m_CPU = c;
-        m_CPU.registerTrapHandler(this);
         m_RAM = r;
+        
+        m_CPU.registerTrapHandler(this);
 
+        initVars();
+    }// SOS ctor
+
+    /**
+     * initVars initialize all lists of porgrams, devices, processes, and
+     * process priority queues
+     */
+    private void initVars() {
         m_devices = new Vector<DeviceInfo>();
         m_programs = new Vector<Program>();
         m_processes = new Vector<ProcessControlBlock>();
-    }// SOS ctor
+        
+        lowPrio = new Vector<ProcessControlBlock>();
+        normPrio = new Vector<ProcessControlBlock>();
+        highPrio = new Vector<ProcessControlBlock>();
+    }
 
     /**
      * Does a System.out.print as long as m_verbose is true
@@ -277,10 +293,25 @@ public class SOS implements CPU.TrapHandler {
 
     /**
      * removeCurrentProcess Removes the currently running process from the list
-     * of all processes. Schedules a new process.
+     * of all processes priorities. Schedules a new process.
      */
     public void removeCurrentProcess() {
         printProcessTable();
+        if (m_currProcess.getProcessId() != IDLE_PROC_ID) {
+            if (m_currProcess.avgStarve >= 0) {
+                totalAvgStarveTime += m_currProcess.avgStarve;
+            }
+            totalAvgStarveTime /= 2;
+
+            if (m_currProcess.maxStarve >= 0) {
+                maxStarvTime += m_currProcess.maxStarve;
+            }
+            maxStarvTime /= 2;
+
+            System.out.println("Avg max starve time: " + maxStarvTime + "\n"
+                    + "Avg avg starve time: " + totalAvgStarveTime);
+        }
+
         m_processes.remove(m_currProcess);
         lowPrio.remove(m_currProcess);
         normPrio.remove(m_currProcess);
@@ -288,6 +319,7 @@ public class SOS implements CPU.TrapHandler {
         m_currProcess = null;
         scheduleNewProcess();
     }// removeCurrentProcess
+
 
     /**
      * selectBlockedProcess select a process to unblock that might be waiting to
@@ -349,11 +381,16 @@ public class SOS implements CPU.TrapHandler {
      */
     public void scheduleNewProcess()
     {
+        // If we have nothing left to run, we are done
         if (m_processes.size() == 0) {
             System.exit(0);
         }
 
+        // Choose a new process based on priority (null if all blocked)
         ProcessControlBlock proc = chooseNewProcess();
+        //ProcessControlBlock proc = getRandomProcess();
+        
+        // Every process is blocked
         if (proc == null) {
 
             // Schedule an idle process.
@@ -386,6 +423,7 @@ public class SOS implements CPU.TrapHandler {
         ProcessControlBlock proc = null;
 
         if (m_currProcess != null) {
+            
             // If we can, we will want to keep the current process running
             if (!m_currProcess.isBlocked()) {
 
@@ -403,23 +441,27 @@ public class SOS implements CPU.TrapHandler {
             }
         }
 
+        // Even if the process used up its quantum, we still want to keep the
+        // current process without a context switch if all others are blocked
         if (m_currProcess != null && !m_currProcess.isBlocked()) {
             proc = m_currProcess;
         }
+        
+
+        // There should always be at least one process in normal prio
+        normalizePrio();
 
         /**
-         * Take the first process from each queue. Check that the starve time
-         * for each queue is not too long and return the highest priority 
-         * process found.
+         * Take the first process from each queue and return the highest 
+         * priority process found.
          */
 
-        normalizePrio();
         for (int i = 0; i < highPrio.size(); i++) {
             if (!highPrio.get(i).isBlocked()) {
                 return highPrio.get(i);
             }
         }
-        
+
         for (int i = 0; i < normPrio.size(); i++) {
             if (!normPrio.get(i).isBlocked()) {
                 return normPrio.get(i);
@@ -560,7 +602,7 @@ public class SOS implements CPU.TrapHandler {
 
         m_CPU.setBASE(base);
         m_CPU.setLIM(lim);
-        m_CPU.setPC(0); // We are going to use a logical (not physical) PC
+        m_CPU.setPC(0);         // We are going to use a logical (not physical) PC
         m_CPU.setSP(allocSize); // Stack starts at the bottom and grows up.
                                 // The Stack is also logical
 
